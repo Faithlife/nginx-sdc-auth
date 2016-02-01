@@ -1,0 +1,4 @@
+ngx_addon_name=ngx_http_sdc_auth
+HTTP_MODULES="$HTTP_MODULES ngx_http_sdc_auth_module"
+NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_sdc_auth.c"
+CORE_LIBS="$CORE_LIBS -lssl"
