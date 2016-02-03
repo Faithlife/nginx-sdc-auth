@@ -106,9 +106,15 @@ ngx_http_sdc_auth_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
         ngx_sprintf(path, "%V%Z", &conf->key_path);
 
         FILE *fp = fopen((const char *) path, "r");
-        conf->pkey = EVP_PKEY_new();
-        PEM_read_PrivateKey(fp, &conf->pkey, NULL, NULL);
+        if (fp == NULL) {
+            ngx_log_error(NGX_LOG_ALERT, cf->log, 0, "Key file not found: %V", &conf->key_path);
+            return NGX_CONF_ERROR;
+        }
+        conf->pkey = PEM_read_PrivateKey(fp, NULL, NULL, NULL);
         fclose(fp);
+        if (conf->pkey == NULL) {
+            return NGX_CONF_ERROR;
+        }
     }
 
     return NGX_CONF_OK;
@@ -135,7 +141,7 @@ ngx_http_sdc_auth_variable_authorization(ngx_http_request_t *r, ngx_http_variabl
         evp_md = EVP_get_digestbyname("SHA256");
     }
 
-    ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "to_sign: \"%s\"", to_sign);
+    ngx_log_debug1(NGX_LOG_DEBUG, r->connection->log, 0, "to_sign: \"%s\"", to_sign);
 
     EVP_MD_CTX *mdctx = EVP_MD_CTX_create();
     EVP_DigestInit_ex(mdctx, evp_md, NULL);
@@ -167,7 +173,7 @@ ngx_http_sdc_auth_variable_authorization(ngx_http_request_t *r, ngx_http_variabl
     u_char *authorization = ngx_palloc(r->pool, MAX_LEN_AUTHORIZATION);
     ngx_snprintf(authorization, MAX_LEN_AUTHORIZATION, "Signature keyId=\"/%V/keys/%V\",algorithm=\"%s\",signature=\"%s\"%Z", &sdc_conf->user, &sdc_conf->key_id, algo, signature);
 
-    ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "Authorization: %s %d", authorization, ngx_strlen(authorization));
+    ngx_log_debug2(NGX_LOG_DEBUG, r->connection->log, 0, "Authorization: %s %d", authorization, ngx_strlen(authorization));
 
     v->len = ngx_strlen(authorization);
     v->data = authorization;
